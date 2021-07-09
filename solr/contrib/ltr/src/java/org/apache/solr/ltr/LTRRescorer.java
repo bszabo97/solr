@@ -45,6 +45,19 @@ public class LTRRescorer extends Rescorer {
 
   final private LTRScoringQuery scoringQuery;
 
+  private static Comparator<ScoreDoc> scoreDocIDComparator = (a, b) -> {
+    // Sort by score descending, then docID ascending:
+    if (a.score > b.score) {
+      return -1;
+    } else if (a.score < b.score) {
+      return 1;
+    } else {
+      // This subtraction can't overflow int
+      // because docIDs are >= 0:
+      return a.doc - b.doc;
+    }
+  };
+
   public LTRRescorer() {
     this.scoringQuery = null;
   }
@@ -131,31 +144,12 @@ public class LTRRescorer extends Rescorer {
   }
 
   protected static void sortByScore(ScoreDoc[] reranked) {
-    Arrays.sort(reranked, new Comparator<ScoreDoc>() {
-      @Override
-      public int compare(ScoreDoc a, ScoreDoc b) {
-        // Sort by score descending, then docID ascending:
-        if (a.score > b.score) {
-          return -1;
-        } else if (a.score < b.score) {
-          return 1;
-        } else {
-          // This subtraction can't overflow int
-          // because docIDs are >= 0:
-          return a.doc - b.doc;
-        }
-      }
-    });
+    Arrays.sort(reranked, scoreDocIDComparator);
   }
 
   protected static ScoreDoc[] getFirstPassDocsRanked(TopDocs firstPassTopDocs) {
     final ScoreDoc[] hits = firstPassTopDocs.scoreDocs;
-    Arrays.sort(hits, new Comparator<ScoreDoc>() {
-      @Override
-      public int compare(ScoreDoc a, ScoreDoc b) {
-        return a.doc - b.doc;
-      }
-    });
+    Arrays.sort(hits, scoreDocIDComparator);
 
     assert firstPassTopDocs.totalHits.relation == TotalHits.Relation.EQUAL_TO;
     return hits;
